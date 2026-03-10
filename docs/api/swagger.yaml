@@ -1,0 +1,10 @@
+basePath: /api/v1
+host: localhost:8080
+info:
+  contact: {}
+  description: API documentation for the notification service of the School Tracking
+    System.
+  title: Notification Service API
+  version: "1.0"
+paths: {}
+swagger: "2.0"
