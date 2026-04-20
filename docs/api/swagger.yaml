@@ -1,10 +1,171 @@
-basePath: /api/v1
-host: localhost:8080
-info:
-  contact: {}
-  description: API documentation for the notification service of the School Tracking
-    System.
-  title: Notification Service API
-  version: "1.0"
-paths: {}
 swagger: "2.0"
+info:
+  title: Notification Service API
+  description: |
+    Envío y registro de notificaciones push (FCM) y SMS (Twilio) para el sistema de tracking escolar.
+
+    **Protocolo:** Este servicio expone una API **gRPC** (puerto 9095).
+    Los endpoints documentados aquí siguen la convención gRPC-over-HTTP.
+    Para probar, usar `grpcurl` o `grpcui` (ver README).
+
+    **Contrato fuente:** `proto/notification/v1/notification.proto`
+  version: "1.0"
+  contact: {}
+host: localhost:9095
+basePath: /
+consumes:
+  - application/json
+produces:
+  - application/json
+tags:
+  - name: NotificationService
+    description: Operaciones de envío y consulta de notificaciones
+paths:
+  /notification.v1.NotificationService/SendPush:
+    post:
+      tags: [NotificationService]
+      summary: Enviar notificación push
+      description: |
+        Envía una notificación push al dispositivo móvil del usuario vía Firebase Cloud Messaging (FCM).
+        Registra la notificación en BD con estado `pending` → `sent` | `failed`.
+        En modo dev (sin FCM_CREDENTIAL_PATH), el mensaje se loguea en consola.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/SendPushRequest'
+      responses:
+        "200":
+          description: Notificación procesada (revisar campo `status` para saber si fue enviada o falló)
+          schema:
+            $ref: '#/definitions/NotificationResponse'
+        "400":
+          description: user_id inválido
+  /notification.v1.NotificationService/SendSMS:
+    post:
+      tags: [NotificationService]
+      summary: Enviar SMS
+      description: |
+        Envía un mensaje SMS al número de teléfono indicado vía Twilio.
+        Registra la notificación en BD con estado `pending` → `sent` | `failed`.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/SendSMSRequest'
+      responses:
+        "200":
+          description: Notificación procesada
+          schema:
+            $ref: '#/definitions/NotificationResponse'
+        "400":
+          description: user_id inválido
+  /notification.v1.NotificationService/GetNotification:
+    post:
+      tags: [NotificationService]
+      summary: Obtener una notificación por ID
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/GetNotificationRequest'
+      responses:
+        "200":
+          description: Datos de la notificación
+          schema:
+            $ref: '#/definitions/NotificationResponse'
+        "404":
+          description: Notificación no encontrada
+  /notification.v1.NotificationService/ListNotifications:
+    post:
+      tags: [NotificationService]
+      summary: Listar notificaciones de un usuario
+      description: Lista todas las notificaciones de un usuario con filtro opcional por estado.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/ListNotificationsRequest'
+      responses:
+        "200":
+          description: Lista paginada de notificaciones
+          schema:
+            $ref: '#/definitions/ListNotificationsResponse'
+        "400":
+          description: user_id inválido
+  /notification.v1.NotificationService/RetryFailed:
+    post:
+      tags: [NotificationService]
+      summary: Reintentar notificaciones fallidas
+      description: Reintenta todas las notificaciones en estado `failed`. Retorna el número de reintentos realizados.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+      responses:
+        "200":
+          description: Resultado del reintento
+          schema:
+            $ref: '#/definitions/RetryFailedResponse'
+definitions:
+  SendPushRequest:
+    type: object
+    required: [user_id, body]
+    properties:
+      user_id: { type: string, format: uuid, example: "550e8400-e29b-41d4-a716-446655440000" }
+      title:   { type: string, example: "Viaje Iniciado" }
+      body:    { type: string, example: "El autobús escolar ha iniciado la ruta." }
+      data:    { type: string, description: "JSON payload opcional", example: "{\"trip_id\": \"uuid\"}" }
+  SendSMSRequest:
+    type: object
+    required: [user_id, phone, body]
+    properties:
+      user_id: { type: string, format: uuid }
+      phone:   { type: string, example: "+573001234567" }
+      body:    { type: string, example: "Tu estudiante ha abordado el autobús." }
+  GetNotificationRequest:
+    type: object
+    required: [id]
+    properties:
+      id: { type: string, format: uuid }
+  ListNotificationsRequest:
+    type: object
+    required: [user_id]
+    properties:
+      user_id: { type: string, format: uuid }
+      status:  { type: string, enum: [pending, sent, failed] }
+      limit:   { type: integer, default: 20 }
+      offset:  { type: integer, default: 0 }
+  Notification:
+    type: object
+    properties:
+      id:         { type: string, format: uuid }
+      user_id:    { type: string, format: uuid }
+      type:       { type: string, enum: [push, sms] }
+      channel:    { type: string, enum: [fcm, twilio] }
+      title:      { type: string }
+      body:       { type: string }
+      data:       { type: string }
+      status:     { type: string, enum: [pending, sent, failed] }
+      created_at: { type: string, format: date-time }
+      updated_at: { type: string, format: date-time }
+  NotificationResponse:
+    type: object
+    properties:
+      notification: { $ref: '#/definitions/Notification' }
+  ListNotificationsResponse:
+    type: object
+    properties:
+      notifications: { type: array, items: { $ref: '#/definitions/Notification' } }
+      total_count:   { type: integer }
+  RetryFailedResponse:
+    type: object
+    properties:
+      retried_count: { type: integer }
+

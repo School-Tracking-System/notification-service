@@ -1,0 +1,28 @@
+with-expecter: false
+packages:
+  github.com/fercho/school-tracking/services/notification/internal/core/ports/repositories:
+    config:
+      dir: "internal/core/ports/mocks"
+      outpkg: mocks
+      mockname: "Mock{{.InterfaceName}}"
+      filename: "{{.InterfaceName | lower}}_mock.go"
+    interfaces:
+      NotificationRepository:
+  github.com/fercho/school-tracking/services/notification/internal/core/ports/resources:
+    config:
+      dir: "internal/core/ports/mocks"
+      outpkg: mocks
+      mockname: "Mock{{.InterfaceName}}"
+      filename: "{{.InterfaceName | lower}}_mock.go"
+    interfaces:
+      EventPublisher:
+      PushNotifier:
+      SMSSender:
+  github.com/fercho/school-tracking/services/notification/internal/core/ports/services:
+    config:
+      dir: "internal/core/ports/mocks"
+      outpkg: mocks
+      mockname: "Mock{{.InterfaceName}}"
+      filename: "{{.InterfaceName | lower}}_mock.go"
+    interfaces:
+      NotificationService:
