@@ -9,7 +9,8 @@ import (
 	"github.com/fercho/school-tracking/services/notification/internal/core/domain"
 	"github.com/fercho/school-tracking/services/notification/internal/core/ports/repositories"
 	"github.com/fercho/school-tracking/services/notification/pkg/env"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"strings"
 	"github.com/google/uuid"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -17,7 +18,16 @@ import (
 
 // NewDatabase opens a PostgreSQL connection pool.
 func NewDatabase(lc fx.Lifecycle, cfg *env.Config, log *zap.Logger) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	dsn := cfg.DatabaseURL
+	if strings.Contains(dsn, "-pooler") && !strings.Contains(dsn, "default_query_exec_mode") {
+		separator := "?"
+		if strings.Contains(dsn, "?") {
+			separator = "&"
+		}
+		dsn += separator + "default_query_exec_mode=exec"
+	}
+
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open notification database: %w", err)
 	}
